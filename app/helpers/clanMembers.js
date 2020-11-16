@@ -43,37 +43,44 @@ class clanMemberHandler {
 			}, (clanMembers)=> {
 				try {
 					const discordMembers = {};
-					message.guild.members.forEach(member => {
-						if (!member.user.bot) {
-							let memberName = member.displayName;
-							if (member.nickname != undefined) {
-								memberName = member.nickname.split('#')[0];
+					message.guild.members.fetch()
+						.then((guildMembers)=> {
+							guildMembers.forEach(member => {
+								if (!member.user.bot) {
+									let memberName = member.displayName;
+									if (member.nickname != undefined) {
+										memberName = member.nickname.split('#')[0];
+									}
+									memberName = memberName.toLowerCase().trim();
+									const clanData = clanMembers[memberName];
+									const isClanMember = clanData != undefined;
+									const memberType = clanData == undefined ? -1 : clanData.memberType;
+									discordMembers[memberName] = true;
+									this.validateClanMemberRoles(member, isClanMember, roleStages, message.channel, memberType);
+								}
+							});
+							message.channel.send('Finished updating member roles.');
+							message.channel.send('Checking for bungie members not in discord...');
+							for (const bungieMember in clanMembers) {
+								if (!(bungieMember in discordMembers)) {
+									data.push(bungieMember + ' is part of bungie clan but is not in the discord server \n');
+								}
 							}
-							memberName = memberName.toLowerCase().trim();
-							const clanData = clanMembers[memberName];
-							const isClanMember = clanData != undefined;
-							const memberType = clanData == undefined ? -1 : clanData.memberType;
-							discordMembers[memberName] = true;
-							this.validateClanMemberRoles(member, isClanMember, roleStages, message.channel, memberType);
-						}
-					});
-					message.channel.send('Finished updating member roles.');
-					message.channel.send('Checking for bungie members not in discord...');
-					for (const bungieMember in clanMembers) {
-						if (!(bungieMember in discordMembers)) {
-							data.push(bungieMember + ' is part of bungie clan but is not in the discord server \n');
-						}
-					}
-					message.author.send(data, { split: true })
-						.then(() => {
-							if (message.channel.type === 'dm') return;
-							message.reply('I\'ve sent you a DM with the members missing in the server!');
+							message.author.send(data, { split: true })
+								.then(() => {
+									if (message.channel.type === 'dm') return;
+									message.reply('I\'ve sent you a DM with the members missing in the server!');
+								})
+								.catch(error => {
+									console.error(`Could not send help DM to ${message.author.tag}.\n`, error);
+									message.reply('it seems like I can\'t DM you!');
+								});
+							message.channel.send('Finished checking bungie members!');
 						})
-						.catch(error => {
-							console.error(`Could not send help DM to ${message.author.tag}.\n`, error);
-							message.reply('it seems like I can\'t DM you!');
+						.catch((err) => {
+							message.channel.send('An error occurred when querying discord guild Data!');
+							console.error(err);
 						});
-					message.channel.send('Finished checking bungie members!');
 				}
 				catch (error) {
 					console.error(error);
@@ -88,7 +95,7 @@ class clanMemberHandler {
 	getRoleStages(roles) {
 		const rolStages = {};
 		for (const key in config.roleNames) {
-			const guildRole = roles.find(x => x.name == config.roleNames[key]);
+			const guildRole = roles.cache.find(x => x.name == config.roleNames[key]);
 			rolStages[key] = { id: guildRole.id, name: guildRole.name };
 		}
 		return rolStages;
@@ -98,32 +105,32 @@ class clanMemberHandler {
 		if (member.displayName == 'Garo') {
 			console.log(member, isClanMember, roleStages, channel, memberType);
 		}
-		if (!isClanMember && member.roles.has(roleStages['member'].id)) {
+		if (!isClanMember && member.roles.cache.has(roleStages['member'].id)) {
 			// is not in any clan and has the discord role for 'member'
 			// remove 'member' role and add 'invite' role
-			member.removeRole(roleStages['member'].id);
-			member.addRole(roleStages['invite'].id);
+			member.roles.remove(roleStages['member'].id);
+			member.roles.add(roleStages['invite'].id);
 			channel.send(member.displayName + ' left the clan!, changed his role to `' + roleStages['invite'].name + '`');
 		}
 
-		if (member.roles.has(roleStages['invite'].id) && isClanMember) {
+		if (member.roles.cache.has(roleStages['invite'].id) && isClanMember) {
 			// If it has the role of an 'invite' and it's a member of any clan:
 			// remove the 'invite' role and add the member role
-			member.removeRole(roleStages['invite'].id);
-			member.addRole(roleStages['member'].id);
+			member.roles.remove(roleStages['invite'].id);
+			member.roles.add(roleStages['member'].id);
 			channel.send(member.displayName + ' has `' + roleStages['invite'].name + '` role but is part of the clan, changed his role to `' + roleStages['member'].name + '`');
 		}
 
 		if(memberType != config.beginnersBungieClanMemberType) {
 			// member is not a beginner, make sure he doesn't have that role
-			if (member.roles.has(roleStages['beginner'].id)) {
-				member.removeRole(roleStages['beginner'].id);
+			if (member.roles.cache.has(roleStages['beginner'].id)) {
+				member.roles.remove(roleStages['beginner'].id);
 				channel.send(member.displayName + ' has `' + roleStages['beginner'].name + '` role but is not a Clan Beginner. Role removed.');
 			}
 		}
-		else if(!member.roles.has(roleStages['beginner'].id)) {
+		else if(!member.roles.cache.has(roleStages['beginner'].id)) {
 			// if the member is a beginner, and does not have the role, assign it to him
-			member.addRole(roleStages['beginner'].id);
+			member.roles.add(roleStages['beginner'].id);
 			channel.send(member.displayName + ' is a clan Beginner, assigning Role `' + roleStages['beginner'].name + '`');
 		}
 	}

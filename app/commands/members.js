@@ -69,7 +69,7 @@ class MemberCommandHandler {
 	getMemberResponseString(member, isClanMember, clanMemberSince, inCsv) {
 		let responseString = member.displayName;
 		const roles = [];
-		member.roles.forEach(role => {
+		member.roles.cache.forEach(role => {
 			if (role.name != '@everyone') {
 				roles.push(role.name);
 			}
