@@ -1,5 +1,7 @@
 # k3kchan
 
+To start with pm2 run from `k3kchan` folder: `pm2 start app/k3kchan.js`
+
 ## Run the bot inside docker (Preferred way)
 
 - Download/Install docker from [here](https://www.docker.com/products/docker-desktop)
